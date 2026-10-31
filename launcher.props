@@ -17,6 +17,7 @@
       <TreatWarningAsError>true</TreatWarningAsError>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
+      <ForceConformanceInForLoopScope>false</ForceConformanceInForLoopScope> <!-- SDK headers rely on old for-loop scoping -->
     </ClCompile>
     <Link>
       <AdditionalDependencies>uxtheme.lib;version.lib;Shlwapi.lib;Comctl32.lib;../games/$(GAMENAME)/engine/lib/engine.lib;../games/$(GAMENAME)/core/lib/core.lib;../games/$(GAMENAME)/extension/lib/extension.lib;../games/$(GAMENAME)/window/lib/window.lib;%(AdditionalDependencies)</AdditionalDependencies>
