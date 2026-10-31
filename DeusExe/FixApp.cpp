@@ -42,32 +42,7 @@ void CFixApp::ReadSettings()
     CheckDlgButton(m_hWnd, CHK_BORDERLESSALLMONITORS, bBorderlessAllMonitors);
 
     //Resolution
-    int iResX = 1024;
-    GConfig->GetInt(L"WinDrv.WindowsClient", bFullscreen ? L"FullscreenViewportX" : L"WindowedViewportX", iResX);
-    int iResY = 768;
-    GConfig->GetInt(L"WinDrv.WindowsClient", bFullscreen ? L"FullscreenViewportY" : L"WindowedViewportY", iResY);
-
-    wchar_t szBuffer[20];
-    _snwprintf_s(szBuffer, _TRUNCATE, L"%dx%d", iResX, iResY);
-    const int iComboRes = ComboBox_FindStringExact(m_hWndCBResolutions, -1, szBuffer);
-
-    const bool bStandardRes = iComboRes != CB_ERR;
-
-    if(bStandardRes) //Can fail if res not supported
-    {
-        ComboBox_SetCurSel(m_hWndCBResolutions, iComboRes);
-        CheckRadioButton(m_hWnd, RADIO_RESCOMMON, RADIO_RESCUSTOM, RADIO_RESCOMMON);
-    }
-    else
-    {
-        CheckRadioButton(m_hWnd,RADIO_RESCOMMON,RADIO_RESCUSTOM,RADIO_RESCUSTOM);
-    }
-
-    SetDlgItemInt(m_hWnd, TXT_RESX, iResX, FALSE);
-    SetDlgItemInt(m_hWnd, TXT_RESY, iResY, FALSE);
-
-    EnableDisableResSettings(!bBorderless, bStandardRes);
-
+    LoadResolution(bFullscreen != FALSE, !bBorderless);
 
     //Bit depth
     int iBitDepth = sm_iBPP_32;
@@ -223,6 +198,40 @@ void CFixApp::PopulateDialog()
 
 }
 
+/**
+Fill the resolution controls from the ini.
+Fullscreen and windowed modes have separate resolutions; show the one matching the selected viewport mode,
+otherwise picking 'Fullscreen' would save the (usually small) windowed resolution as the fullscreen one.
+*/
+void CFixApp::LoadResolution(const bool bFullscreen, const bool bChangesAllowed) const
+{
+    int iResX = bFullscreen ? GetSystemMetrics(SM_CXSCREEN) : 1024;
+    GConfig->GetInt(L"WinDrv.WindowsClient", bFullscreen ? L"FullscreenViewportX" : L"WindowedViewportX", iResX);
+    int iResY = bFullscreen ? GetSystemMetrics(SM_CYSCREEN) : 768;
+    GConfig->GetInt(L"WinDrv.WindowsClient", bFullscreen ? L"FullscreenViewportY" : L"WindowedViewportY", iResY);
+
+    wchar_t szBuffer[20];
+    _snwprintf_s(szBuffer, _TRUNCATE, L"%dx%d", iResX, iResY);
+    const int iComboRes = ComboBox_FindStringExact(m_hWndCBResolutions, -1, szBuffer);
+
+    const bool bStandardRes = iComboRes != CB_ERR;
+
+    if(bStandardRes) //Can fail if res not supported
+    {
+        ComboBox_SetCurSel(m_hWndCBResolutions, iComboRes);
+        CheckRadioButton(m_hWnd, RADIO_RESCOMMON, RADIO_RESCUSTOM, RADIO_RESCOMMON);
+    }
+    else
+    {
+        CheckRadioButton(m_hWnd,RADIO_RESCOMMON,RADIO_RESCUSTOM,RADIO_RESCUSTOM);
+    }
+
+    SetDlgItemInt(m_hWnd, TXT_RESX, iResX, FALSE);
+    SetDlgItemInt(m_hWnd, TXT_RESY, iResY, FALSE);
+
+    EnableDisableResSettings(bChangesAllowed, bStandardRes);
+}
+
 void CFixApp::EnableDisableResSettings(const bool bChangesAllowed, const bool bCommon) const
 {
     EnableWindow(m_hWndRadioResCommon, bChangesAllowed);
@@ -247,23 +256,41 @@ void CFixApp::ApplySettings() const
     GConfig->SetInt(L"WinDrv.WindowsClient",L"FullscreenColorBits",iBitDepth);
 
     //Resolution
-    size_t iResX, iResY;
+    size_t iResX = GetDlgItemInt(m_hWnd, TXT_RESX, nullptr, FALSE);
+    size_t iResY = GetDlgItemInt(m_hWnd, TXT_RESY, nullptr, FALSE);
     if(IsDlgButtonChecked(m_hWnd,RADIO_RESCOMMON))
     {
         const int i = ComboBox_GetCurSel(m_hWndCBResolutions);
-        const Resolution* pRes = reinterpret_cast<Resolution*>(ComboBox_GetItemData(m_hWndCBResolutions,i));
-        iResX = pRes->iX;
-        iResY = pRes->iY;
+        if(i != CB_ERR)
+        {
+            const Resolution* pRes = reinterpret_cast<Resolution*>(ComboBox_GetItemData(m_hWndCBResolutions,i));
+            iResX = pRes->iX;
+            iResY = pRes->iY;
+        }
+    }
+    if(iResX == 0 || iResY == 0) //Invalid input, fall back to desktop resolution
+    {
+        iResX = GetSystemMetrics(SM_CXSCREEN);
+        iResY = GetSystemMetrics(SM_CYSCREEN);
+    }
+
+    //Only store the resolution for the selected mode; in borderless mode the window always covers the monitor.
+    //The FOV calculation below still needs the real size.
+    if(IsDlgButtonChecked(m_hWnd, RADIO_VPFULLSCREEN))
+    {
+        GConfig->SetInt(L"WinDrv.WindowsClient", L"FullscreenViewportX", iResX);
+        GConfig->SetInt(L"WinDrv.WindowsClient", L"FullscreenViewportY", iResY);
+    }
+    else if(IsDlgButtonChecked(m_hWnd, RADIO_VPWINDOWED))
+    {
+        GConfig->SetInt(L"WinDrv.WindowsClient", L"WindowedViewportX", iResX);
+        GConfig->SetInt(L"WinDrv.WindowsClient", L"WindowedViewportY", iResY);
     }
     else
     {
-        iResX = GetDlgItemInt(m_hWnd, TXT_RESX, nullptr, FALSE);
-        iResY = GetDlgItemInt(m_hWnd, TXT_RESY, nullptr, FALSE);
+        iResX = GetSystemMetrics(SM_CXSCREEN);
+        iResY = GetSystemMetrics(SM_CYSCREEN);
     }
-    GConfig->SetInt(L"WinDrv.WindowsClient",L"FullscreenViewportX",iResX);
-    GConfig->SetInt(L"WinDrv.WindowsClient", L"WindowedViewportX", iResX);
-    GConfig->SetInt(L"WinDrv.WindowsClient",L"FullscreenViewportY",iResY);
-    GConfig->SetInt(L"WinDrv.WindowsClient", L"WindowedViewportY", iResY);
 
     //FOV
     float fFOV;
@@ -299,7 +326,7 @@ void CFixApp::ApplySettings() const
     //Full-screen
     GConfig->SetBool(PROJECTNAME, L"BorderlessFullscreenWindow", IsDlgButtonChecked(m_hWnd, RADIO_VPBORDERLESS) != 0);
     GConfig->SetBool(PROJECTNAME, L"BorderlessFullscreenWindowAllMonitors", IsDlgButtonChecked(m_hWnd, CHK_BORDERLESSALLMONITORS) != 0);
-    GConfig->SetBool(L"WinDrv.WindowsClient",L"StartupFullSCreen",IsDlgButtonChecked(m_hWnd,CHK_FULLSCREEN)!=0);
+    GConfig->SetBool(L"WinDrv.WindowsClient",L"StartupFullscreen",IsDlgButtonChecked(m_hWnd,RADIO_VPFULLSCREEN)!=0);
     //FPS Limit
     GConfig->SetInt(PROJECTNAME, L"FPSLimit", GetDlgItemInt(m_hWnd, TXT_FPSLIMIT, nullptr, FALSE));
     //Single CPU
@@ -367,7 +394,7 @@ INT_PTR CALLBACK CFixApp::FixAppDialogProc(HWND hwndDlg,UINT uMsg,WPARAM wParam,
             case RADIO_VPBORDERLESS:
             {
                 const bool bBorderless = LOWORD(wParam) == RADIO_VPBORDERLESS;
-                pThis->EnableDisableResSettings(!bBorderless, IsDlgButtonChecked(pThis->m_hWnd, RADIO_RESCOMMON)!=0);
+                pThis->LoadResolution(LOWORD(wParam) == RADIO_VPFULLSCREEN, !bBorderless);
                 EnableWindow(GetDlgItem(pThis->m_hWnd, CHK_BORDERLESSALLMONITORS), bBorderless);
             }
             return TRUE;
