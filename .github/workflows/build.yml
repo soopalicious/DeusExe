@@ -1,0 +1,44 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for Deus Ex SDK files
+        shell: pwsh
+        run: |
+          $missing = @()
+          foreach ($dir in 'core/inc','engine/inc','window/inc','deusex/inc','extension/inc',
+                           'core/lib/core.lib','engine/lib/engine.lib','window/lib/window.lib','extension/lib/extension.lib') {
+            if (-not (Test-Path "games/DeusEx/$dir")) { $missing += "games/DeusEx/$dir" }
+          }
+          if ($missing.Count -gt 0) {
+            Write-Error ("Deus Ex SDK files missing. Copy the SDK's Core, Engine, Window, DeusEx and Extension folders (each with Inc/ and Lib/) into games/DeusEx/. Missing:`n" + ($missing -join "`n"))
+            exit 1
+          }
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build Release
+        # The project targets the VS2015 toolset; build with the one installed on the runner.
+        # _CL_=/WX- stops new warnings from the newer compiler failing the build.
+        env:
+          _CL_: /WX-
+        run: >
+          msbuild DeusExe.sln /m
+          /p:Configuration=Release /p:Platform=Win32
+          /p:PlatformToolset=v143 /p:WindowsTargetPlatformVersion=10.0
+          /p:PostBuildEventUseInBuild=false
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DeusExe
+          path: Release/deusex.exe
+          if-no-files-found: error

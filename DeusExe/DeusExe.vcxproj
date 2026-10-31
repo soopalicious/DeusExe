@@ -76,7 +76,6 @@
       </PrecompiledHeader>
       <UndefinePreprocessorDefinitions>
       </UndefinePreprocessorDefinitions>
-      <ForcedUsingFiles>$(VCInstallDir)lib\store\references\platform.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
