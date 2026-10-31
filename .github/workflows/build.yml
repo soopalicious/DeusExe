@@ -55,5 +55,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: DeusExe
-          path: Release/deusex.exe
+          path: |
+            Release/deusex.exe
+            Release/DeusExe.u
           if-no-files-found: error
