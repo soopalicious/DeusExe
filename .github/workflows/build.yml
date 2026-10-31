@@ -11,6 +11,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x86
+
+      # The SDK doesn't ship import libraries, so build them from the export lists
+      # (generated from the game's DLLs) in games/DeusEx/<Module>/Lib/<module>.def.
+      - name: Generate import libraries
+        shell: pwsh
+        run: |
+          foreach ($def in Get-ChildItem games/DeusEx -Recurse -Filter *.def) {
+            $out = Join-Path $def.DirectoryName ($def.BaseName + '.lib')
+            lib /nologo /machine:x86 "/def:$($def.FullName)" "/out:$out"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
       - name: Check for Deus Ex SDK files
         shell: pwsh
         run: |
@@ -20,7 +35,7 @@ jobs:
             if (-not (Test-Path "games/DeusEx/$dir")) { $missing += "games/DeusEx/$dir" }
           }
           if ($missing.Count -gt 0) {
-            Write-Error ("Deus Ex SDK files missing. Copy the SDK's Core, Engine, Window, DeusEx and Extension folders (each with Inc/ and Lib/) into games/DeusEx/. Missing:`n" + ($missing -join "`n"))
+            Write-Error ("Deus Ex SDK files missing. Copy the SDK's Core, Engine, Window, DeusEx and Extension Inc folders into games/DeusEx/ and add .def export lists for Core, Engine, Window and Extension. Missing:`n" + ($missing -join "`n"))
             exit 1
           }
 
