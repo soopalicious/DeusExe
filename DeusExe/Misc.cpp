@@ -84,7 +84,10 @@ void Misc::CenterWindowOnMonitor(const HWND hWnd, const HMONITOR hMonitor)
 
     MONITORINFO mi;
     mi.cbSize = sizeof(mi);
-    GetMonitorInfo(hMonitor, &mi);
+    if (!GetMonitorInfo(hMonitor, &mi)) //Handle can become invalid, e.g. after a display mode change; don't move window to garbage coordinates
+    {
+        return;
+    }
     RECT r;
     GetWindowRect(hWnd, &r);
 
@@ -122,11 +125,14 @@ void Misc::SetBorderlessFullscreen(const HWND hWnd, const BorderlessFullscreenMo
 
         if (Mode == BorderlessFullscreenMode::CURRENT_MONITOR)
         {
-            const HMONITOR hM = MonitorFromWindow(hWnd, 0);
+            const HMONITOR hM = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST); //Window may be (partially) off-screen
 
             MONITORINFO mi;
             mi.cbSize = sizeof(mi);
-            GetMonitorInfo(hM, &mi);
+            if (!GetMonitorInfo(hM, &mi))
+            {
+                return;
+            }
 
             iX = mi.rcMonitor.left;
             iY = mi.rcMonitor.top;

@@ -12,6 +12,7 @@ public:
 private:
     void ReadSettings();
     void PopulateDialog();
+    void LoadResolution(const bool bFullscreen, const bool bChangesAllowed) const;
     void EnableDisableResSettings(const bool bChangesAllowed, const bool bCommon) const;
     void ApplySettings() const;
 

@@ -170,7 +170,8 @@ CLauncher::CLauncher()
         }
 
         //Move window to launcher's monitor
-        if (hMonitor != NULL && m_hWnd)
+        //Never move an exclusive fullscreen window: it already covers the screen, and moving it can leave a black screen.
+        if (hMonitor != NULL && m_hWnd && !(m_pViewPort && m_pViewPort->IsFullscreen()))
         {
             Misc::CenterWindowOnMonitor(m_hWnd, hMonitor);
         }
