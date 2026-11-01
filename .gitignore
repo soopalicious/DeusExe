@@ -212,3 +212,6 @@ _Pvt_Extensions/
 ModelManifest.xml
 
  *.VC.opendb
+
+# Import libraries are generated from the .def files during the build
+games/**/*.lib
